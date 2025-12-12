@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第6章 - 数据可视化交互式网页</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MathJax for math formulas -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* 自定义样式 */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin: 20px 0;
+        }
+        
+        .nav-item {
+            transition: all 0.3s ease;
+        }
+        
+        .nav-item:hover {
+            transform: translateX(5px);
+        }
+        
+        .chart-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .chart-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        
+        .section-content {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        .section-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+            
+            .sidebar {
+                position: fixed;
+                z-index: 40;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- 头部导航 -->
+    <header class="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <button id="mobileMenuBtn" class="md:hidden text-white">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="text-2xl md:text-3xl font-bold">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        第6章 - 数据可视化教程
+                    </h1>
+                </div>
+                <div class="hidden md:flex items-center space-x-4">
+                    <span class="text-sm opacity-90">交互式数据可视化</span>
+                    <button id="themeToggle" class="bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-lg transition">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-6">
+        <div class="flex flex-col md:flex-row gap-6">
+            <!-- 侧边导航栏 -->
+            <aside id="sidebar" class="sidebar w-full md:w-64 bg-white rounded-lg shadow-lg p-4 h-fit">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        <i class="fas fa-list mr-2"></i>章节导航
+                    </h2>
+                    <button id="closeSidebar" class="md:hidden text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <nav class="space-y-2">
+                    <a href="#" class="nav-item block px-4 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100" data-section="overview">
+                        <i class="fas fa-home mr-2"></i>6.1 坐标轴概述
+                    </a>
+                    <a href="#" class="nav-item block px-4 py-2 rounded-lg hover:bg-gray-100" data-section="position">
+                        <i class="fas fa-arrows-alt mr-2"></i>6.2 向任意位置添加坐标轴
+                    </a>
+                    <a href="#" class="nav-item block px-4 py-2 rounded-lg hover:bg-gray-100" data-section="datetime">
+                        <i class="fas fa-clock mr-2"></i>6.3 日期时间坐标轴
+                    </a>
+                    <a href="#" class="nav-item block px-4 py-2 rounded-lg hover:bg-gray-100" data-section="spines">
+                        <i class="fas fa-border-style mr-2"></i>6.4 坐标轴脊的设置
+                    </a>
+                    <a href="#" class="nav-item block px-4 py-2 rounded-lg hover:bg-gray-100" data-section="trig">
+                        <i class="fas fa-wave-square mr-2"></i>6.5 三角函数图表
+                    </a>
+                </nav>
+                
+                <!-- 快速操作 -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-600 mb-3">快速操作</h3>
+                    <div class="space-y-2">
+                        <button id="exportData" class="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                            <i class="fas fa-download mr-2"></i>导出数据
+                        </button>
+                        <button id="resetCharts" class="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                            <i class="fas fa-redo mr-2"></i>重置图表
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 主要内容区域 -->
+            <main class="flex-1">
+                <!-- 6.1 坐标轴概述 -->
+                <section id="overview" class="section-content active">
+                    <div class="bg-white rounded-lg shadow-lg p-6 chart-card">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-home mr-2 text-blue-600"></i>6.1 坐标轴概述
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            坐标轴是数据可视化的基础元素，了解其结构对于创建有效的图表至关重要。
+                            Matplotlib提供了丰富的坐标轴控制功能，让我们能够精确控制图表的各个方面。
+                        </p>
+                        
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <!-- 坐标轴结构说明 -->
+                            <div class="bg-blue-50 rounded-lg p-4">
+                                <h3 class="font-semibold text-blue-800 mb-3">坐标轴组成部分</h3>
+                                <ul class="space-y-2 text-sm text-gray-700">
+                                    <li><i class="fas fa-arrow-right text-blue-600 mr-2"></i><strong>左轴脊 (left):</strong> 左侧边界线</li>
+                                    <li><i class="fas fa-arrow-right text-blue-600 mr-2"></i><strong>右轴脊 (right):</strong> 右侧边界线</li>
+                                    <li><i class="fas fa-arrow-right text-blue-600 mr-2"></i><strong>上轴脊 (top):</strong> 上方边界线</li>
+                                    <li><i class="fas fa-arrow-right text-blue-600 mr-2"></i><strong>下轴脊 (bottom):</strong> 下方边界线</li>
+                                    <li><i class="fas fa-arrow-right text-blue-600 mr-2"></i><strong>刻度线:</strong> 坐标轴上的标记</li>
+                                    <li><i class="fas fa-arrow-right text-blue-600 mr-2"></i><strong>刻度标签:</strong> 刻度的数值显示</li>
+                                </ul>
+                            </div>
+                            
+                            <!-- 交互式控制 -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h3 class="font-semibold text-gray-800 mb-3">交互式控制</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">显示轴脊</label>
+                                        <div class="space-x-2">
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" id="showLeft" checked class="mr-2">
+                                                <span class="text-sm">左</span>
+                                            </label>
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" id="showRight" checked class="mr-2">
+                                                <span class="text-sm">右</span>
+                                            </label>
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" id="showTop" checked class="mr-2">
+                                                <span class="text-sm">上</span>
+                                            </label>
+                                            <label class="inline-flex items-center">
+                                                <input type="checkbox" id="showBottom" checked class="mr-2">
+                                                <span class="text-sm">下</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <button id="updateOverview" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                                        <i class="fas fa-sync mr-2"></i>更新图表
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6">
+                            <div class="chart-container">
+                                <canvas id="overviewChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6.2 向任意位置添加坐标轴 -->
+                <section id="position" class="section-content">
+                    <div class="bg-white rounded-lg shadow-lg p-6 chart-card">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-arrows-alt mr-2 text-green-600"></i>6.2 向任意位置添加坐标轴
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            在matplotlib中，我们可以使用plt.axes()方法在画布的任意位置创建坐标轴。
+                            这个方法接受一个四元组参数(left, bottom, width, height)，定义了坐标轴的位置和大小。
+                        </p>
+                        
+                        <div class="bg-yellow-50 rounded-lg p-4 mb-6">
+                            <h3 class="font-semibold text-yellow-800 mb-2">
+                                <i class="fas fa-info-circle mr-2"></i>坐标系统说明
+                            </h3>
+                            <p class="text-sm text-gray-700">
+                                matplotlib使用标准化坐标系统：(0,0)表示左下角，(1,1)表示右上角。
+                                例如，axes((0.2, 0.5, 0.3, 0.3))表示在距离左边20%、下方50%的位置创建一个占画布宽度30%、高度30%的坐标轴。
+                            </p>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-3 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">X位置 (0-1)</label>
+                                <input type="range" id="ax1X" min="0" max="0.7" step="0.1" value="0.2" class="w-full">
+                                <span id="ax1XVal" class="text-sm text-gray-600">0.2</span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Y位置 (0-1)</label>
+                                <input type="range" id="ax1Y" min="0" max="0.7" step="0.1" value="0.5" class="w-full">
+                                <span id="ax1YVal" class="text-sm text-gray-600">0.5</span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">大小 (0-1)</label>
+                                <input type="range" id="ax1Size" min="0.1" max="0.5" step="0.1" value="0.3" class="w-full">
+                                <span id="ax1SizeVal" class="text-sm text-gray-600">0.3</span>
+                            </div>
+                        </div>
+                        
+                        <button id="updatePosition" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition mb-6">
+                            <i class="fas fa-sync mr-2"></i>更新位置
+                        </button>
+                        
+                        <div class="chart-container">
+                            <canvas id="positionChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6.3 日期时间坐标轴 -->
+                <section id="datetime" class="section-content">
+                    <div class="bg-white rounded-lg shadow-lg p-6 chart-card">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-clock mr-2 text-purple-600"></i>6.3 日期时间坐标轴
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            时间序列数据在数据分析中非常常见。matplotlib提供了强大的日期时间处理功能，
+                            支持多种日期格式和时间间隔设置，让我们能够创建清晰易读的时间序列图表。
+                        </p>
+                        
+                        <div class="bg-purple-50 rounded-lg p-4 mb-6">
+                            <h3 class="font-semibold text-purple-800 mb-2">
+                                <i class="fas fa-database mr-2"></i>示例数据：深圳市24小时平均风速
+                            </h3>
+                            <p class="text-sm text-gray-700">
+                                下图展示了深圳市在24小时内的平均风速变化情况，通过设置合适的日期格式和刻度间隔，
+                                使得时间轴更加清晰易读。
+                            </p>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">时间间隔</label>
+                                <select id="timeInterval" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="1">每小时</option>
+                                    <option value="2" selected>每2小时</option>
+                                    <option value="4">每4小时</option>
+                                    <option value="6">每6小时</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">日期格式</label>
+                                <select id="dateFormat" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="%H时">%H时 (小时)</option>
+                                    <option value="%m/%d">%m/%d (月/日)</option>
+                                    <option value="%Y/%m/%d" selected>%Y/%m/%d (年/月/日)</option>
+                                    <option value="%H:%M">%H:%M (时:分)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">刻度旋转角度</label>
+                                <input type="range" id="tickRotation" min="0" max="90" step="15" value="45" class="w-full">
+                                <span id="tickRotationVal" class="text-sm text-gray-600">45°</span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">刻度标签大小</label>
+                                <input type="range" id="tickSize" min="8" max="16" step="1" value="12" class="w-full">
+                                <span id="tickSizeVal" class="text-sm text-gray-600">12px</span>
+                            </div>
+                        </div>
+                        
+                        <button id="updateDatetime" class="w-full bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition mb-6">
+                            <i class="fas fa-sync mr-2"></i>更新图表
+                        </button>
+                        
+                        <div class="chart-container">
+                            <canvas id="datetimeChart"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6.4 坐标轴脊的设置 -->
+                <section id="spines" class="section-content">
+                    <div class="bg-white rounded-lg shadow-lg p-6 chart-card">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-border-style mr-2 text-orange-600"></i>6.4 坐标轴脊的设置
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            坐标轴脊（spines）是图表的边界线。通过控制轴脊的显示、颜色、位置等属性，
+                            我们可以创建各种风格的图表，从传统的四边框图表到现代的简约风格图表。
+                        </p>
+                        
+                        <!-- 预设样式 -->
+                        <div class="grid md:grid-cols-3 gap-4 mb-6">
+                            <button class="spine-preset bg-orange-50 hover:bg-orange-100 p-3 rounded-lg transition" data-preset="traditional">
+                                <i class="fas fa-square text-orange-600 mb-2"></i>
+                                <div class="text-sm font-medium">传统样式</div>
+                                <div class="text-xs text-gray-600">显示所有边框</div>
+                            </button>
+                            <button class="spine-preset bg-blue-50 hover:bg-blue-100 p-3 rounded-lg transition" data-preset="minimal">
+                                <i class="fas fa-chart-line text-blue-600 mb-2"></i>
+                                <div class="text-sm font-medium">最小化样式</div>
+                                <div class="text-xs text-gray-600">隐藏上右边框</div>
+                            </button>
+                            <button class="spine-preset bg-green-50 hover:bg-green-100 p-3 rounded-lg transition" data-preset="centered">
+                                <i class="fas fa-crosshairs text-green-600 mb-2"></i>
+                                <div class="text-sm font-medium">中心化样式</div>
+                                <div class="text-xs text-gray-600">坐标轴居中</div>
+                            </button>
+                        </div>
+                        
+                        <!-- 自定义控制 -->
+                        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+                            <h3 class="font-semibold text-gray-800 mb-3">自定义设置</h3>
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">显示轴脊</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="spineTop" checked class="mr-2">
+                                            <span class="text-sm">上轴脊</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="spineRight" checked class="mr-2">
+                                            <span class="text-sm">右轴脊</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="spineBottom" checked class="mr-2">
+                                            <span class="text-sm">下轴脊</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" id="spineLeft" checked class="mr-2">
+                                            <span class="text-sm">左轴脊</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">轴脊颜色</label>
+                                    <input type="color" id="spineColor" value="#333333" class="w-full h-10 rounded cursor-pointer mb-3">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">轴脊宽度</label>
+                                    <input type="range" id="spineWidth" min="0.5" max="3" step="0.5" value="1" class="w-full">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button id="updateSpines" class="w-full bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition mb-6">
+                            <i class="fas fa-sync mr-2"></i>更新样式
+                        </button>
+                        
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <!-- 多边形图表示例 -->
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">多边形图表示例</h4>
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="spinePolygonChart"></canvas>
+                                </div>
+                            </div>
+                            <!-- 五边形图表示例 -->
+                            <div>
+                                <h4 class="font-medium text-gray-700 mb-3">五边形图表示例</h4>
+                                <div class="chart-container" style="height: 300px;">
+                                    <canvas id="spinePentagonChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6.5 三角函数图表 -->
+                <section id="trig" class="section-content">
+                    <div class="bg-white rounded-lg shadow-lg p-6 chart-card">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-wave-square mr-2 text-indigo-600"></i>6.5 三角函数图表
+                        </h2>
+                        <p class="text-gray-600 mb-6">
+                            三角函数是数学中的重要概念，通过可视化可以帮助我们更好地理解其周期性特征。
+                            本节展示了正弦和余弦函数的图形，并演示了如何创建数学风格的图表。
+                        </p>
+                        
+                        <div class="bg-indigo-50 rounded-lg p-4 mb-6">
+                            <h3 class="font-semibold text-indigo-800 mb-2">
+                                <i class="fas fa-calculator mr-2"></i>数学函数
+                            </h3>
+                            <div class="grid md:grid-cols-2 gap-4 text-sm text-gray-700">
+                                <div>
+                                    <strong>正弦函数：</strong> \( y = \sin(x) \)
+                                    <br>周期：\( 2\pi \)，范围：[-1, 1]
+                                </div>
+                                <div>
+                                    <strong>余弦函数：</strong> \( y = \cos(x) \)
+                                    <br>周期：\( 2\pi \)，范围：[-1, 1]
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">显示函数</label>
+                                <div class="space-y-2">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="showSine" checked class="mr-2">
+                                        <span class="text-sm">正弦函数 sin(x)</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" id="showCosine" checked class="mr-2">
+                                        <span class="text-sm">余弦函数 cos(x)</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">X轴范围</label>
+                                <select id="xRange" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="1">\([-π, π]\)</option>
+                                    <option value="2" selected>\([-2π, 2π]\)</option>
+                                    <option value="3">\([-3π, 3π]\)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="grid md:grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">数据点数量</label>
+                                <input type="range" id="dataPoints" min="50" max="500" step="50" value="100" class="w-full">
+                                <span id="dataPointsVal" class="text-sm text-gray-600">100</span>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">动画效果</label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="enableAnimation" checked class="mr-2">
+                                    <span class="text-sm">启用动画</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button id="updateTrig" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition mb-6">
+                            <i class="fas fa-sync mr-2"></i>更新图表
+                        </button>
+                        
+                        <div class="chart-container">
+                            <canvas id="trigChart"></canvas>
+                        </div>
+                        
+                        <!-- 函数值计算器 -->
+                        <div class="mt-6 bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-medium text-gray-700 mb-3">函数值计算器</h4>
+                            <div class="grid md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">x 值 (弧度)</label>
+                                    <input type="number" id="xValue" step="0.1" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">sin(x)</label>
+                                    <input type="text" id="sinResult" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">cos(x)</label>
+                                    <input type="text" id="cosResult" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                                </div>
+                            </div>
+                            <button id="calculateTrig" class="mt-3 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                                <i class="fas fa-calculator mr-2"></i>计算
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-6">
+                <div>
+                    <h3 class="font-semibold mb-3">关于本教程</h3>
+                    <p class="text-sm text-gray-300">
+                        本交互式网页基于《第6章 坐标轴与图表设计》内容制作，
+                        提供了丰富的数据可视化示例和交互功能。
+                    </p>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-3">技术栈</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="bg-gray-700 px-2 py-1 rounded text-xs">Chart.js</span>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-xs">Tailwind CSS</span>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-xs">MathJax</span>
+                        <span class="bg-gray-700 px-2 py-1 rounded text-xs">HTML5</span>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-3">功能特性</h3>
+                    <ul class="text-sm text-gray-300 space-y-1">
+                        <li><i class="fas fa-check mr-2"></i>响应式设计</li>
+                        <li><i class="fas fa-check mr-2"></i>交互式图表</li>
+                        <li><i class="fas fa-check mr-2"></i>实时更新</li>
+                        <li><i class="fas fa-check mr-2"></i>数据导出</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-6 pt-6 border-t border-gray-700 text-center text-sm text-gray-400">
+                <p>&copy; 2024 数据可视化教程. 保留所有权利.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript 代码 -->
+    <script>
+        // 全局变量存储图表实例
+        let charts = {};
+        
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', function() {
+            initNavigation();
+            initCharts();
+            initControls();
+            initTheme();
+            MathJax.typesetPromise(); // 渲染数学公式
+        });
+        
+        // 导航功能
+        function initNavigation() {
+            const navItems = document.querySelectorAll('.nav-item');
+            const sections = document.querySelectorAll('.section-content');
+            
+            navItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetSection = item.dataset.section;
+                    
+                    // 更新导航样式
+                    navItems.forEach(nav => {
+                        nav.classList.remove('bg-blue-50', 'text-blue-600');
+                        nav.classList.add('hover:bg-gray-100');
+                    });
+                    item.classList.add('bg-blue-50', 'text-blue-600');
+                    item.classList.remove('hover:bg-gray-100');
+                    
+                    // 显示对应内容
+                    sections.forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    document.getElementById(targetSection).classList.add('active');
+                    
+                    // 移动端关闭侧边栏
+                    if (window.innerWidth < 768) {
+                        document.getElementById('sidebar').classList.remove('open');
+                    }
+                });
+            });
+            
+            // 移动端菜单控制
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            const sidebar = document.getElementById('sidebar');
+            const closeSidebar = document.getElementById('closeSidebar');
+            
+            if (mobileMenuBtn) {
+                mobileMenuBtn.addEventListener('click', () => {
+                    sidebar.classList.toggle('open');
+                });
+            }
+            
+            if (closeSidebar) {
+                closeSidebar.addEventListener('click', () => {
+                    sidebar.classList.remove('open');
+                });
+            }
+        }
+        
+        // 初始化所有图表
+        function initCharts() {
+            initOverviewChart();
+            initPositionChart();
+            initDatetimeChart();
+            initSpineCharts();
+            initTrigChart();
+        }
+        
+        // 6.1 坐标轴概述图表
+        function initOverviewChart() {
+            const ctx = document.getElementById('overviewChart').getContext('2d');
+            charts.overview = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '示例数据点',
+                        data: generateRandomPoints(50),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '坐标轴结构演示'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            grid: {
+                                display: true
+                            },
+                            title: {
+                                display: true,
+                                text: 'X 轴'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            grid: {
+                                display: true
+                            },
+                            title: {
+                                display: true,
+                                text: 'Y 轴'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 6.2 位置控制图表
+        function initPositionChart() {
+            const ctx = document.getElementById('positionChart').getContext('2d');
+            charts.position = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [1, 2, 3, 4, 5],
+                    datasets: [{
+                        label: '数据集 1',
+                        data: [12, 19, 3, 5, 2],
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: '数据集 2',
+                        data: [5, 15, 10, 20, 8],
+                        borderColor: 'rgba(168, 85, 247, 1)',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '多轴图表演示'
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 6.3 日期时间图表
+        function initDatetimeChart() {
+            const ctx = document.getElementById('datetimeChart').getContext('2d');
+            const hours = Array.from({length: 13}, (_, i) => i * 2);
+            const windSpeed = [7, 9, 11, 14, 8, 15, 22, 11, 10, 11, 11, 13, 8];
+            
+            charts.datetime = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hours.map(h => `${h}:00`),
+                    datasets: [{
+                        label: '深圳市24小时平均风速',
+                        data: windSpeed,
+                        borderColor: 'rgba(147, 51, 234, 1)',
+                        backgroundColor: 'rgba(147, 51, 234, 0.1)',
+                        tension: 0.2,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '深圳市24小时平均风速'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间'
+                            },
+                            ticks: {
+                                maxRotation: 45
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '风速 (m/s)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 6.4 轴脊设置图表
+        function initSpineCharts() {
+            // 多边形图表
+            const polygonCtx = document.getElementById('spinePolygonChart').getContext('2d');
+            charts.spinePolygon = new Chart(polygonCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '六边形',
+                        data: generatePolygonPoints(6, 0.5, 0.2),
+                        backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        showLine: true,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 1,
+                            display: false
+                        },
+                        y: {
+                            min: 0,
+                            max: 1,
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // 五边形图表
+            const pentagonCtx = document.getElementById('spinePentagonChart').getContext('2d');
+            charts.spinePentagon = new Chart(pentagonCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: '五边形',
+                        data: generatePolygonPoints(5, 0.5, 0.2),
+                        backgroundColor: 'rgba(250, 204, 21, 0.6)',
+                        borderColor: 'rgba(250, 204, 21, 1)',
+                        showLine: true,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            min: 0,
+                            max: 1,
+                            display: false
+                        },
+                        y: {
+                            min: 0,
+                            max: 1,
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 6.5 三角函数图表
+        function initTrigChart() {
+            const ctx = document.getElementById('trigChart').getContext('2d');
+            const xData = generateXData(-2 * Math.PI, 2 * Math.PI, 100);
+            
+            charts.trig = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: xData.map(x => x.toFixed(2)),
+                    datasets: [{
+                        label: 'sin(x)',
+                        data: xData.map(x => Math.sin(x)),
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 0
+                    }, {
+                        label: 'cos(x)',
+                        data: xData.map(x => Math.cos(x)),
+                        borderColor: 'rgba(236, 72, 153, 1)',
+                        backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '正弦和余弦函数'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'x (弧度)'
+                            },
+                            ticks: {
+                                callback: function(value, index) {
+                                    const x = parseFloat(this.getLabelForValue(value));
+                                    const pi = Math.PI;
+                                    
+                                    if (Math.abs(x) < 0.01) return '0';
+                                    if (Math.abs(x - pi/2) < 0.01) return 'π/2';
+                                    if (Math.abs(x - pi) < 0.01) return 'π';
+                                    if (Math.abs(x - 3*pi/2) < 0.01) return '3π/2';
+                                    if (Math.abs(x - 2*pi) < 0.01) return '2π';
+                                    if (Math.abs(x + pi/2) < 0.01) return '-π/2';
+                                    if (Math.abs(x + pi) < 0.01) return '-π';
+                                    if (Math.abs(x + 3*pi/2) < 0.01) return '-3π/2';
+                                    if (Math.abs(x + 2*pi) < 0.01) return '-2π';
+                                    
+                                    return x.toFixed(1);
+                                }
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'y'
+                            },
+                            min: -1.5,
+                            max: 1.5,
+                            ticks: {
+                                stepSize: 0.5
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 初始化控制功能
+        function initControls() {
+            // 概述页面控制
+            document.getElementById('updateOverview')?.addEventListener('click', updateOverviewChart);
+            
+            // 位置控制
+            ['ax1X', 'ax1Y', 'ax1Size'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', (e) => {
+                        document.getElementById(id + 'Val').textContent = e.target.value;
+                    });
+                }
+            });
+            document.getElementById('updatePosition')?.addEventListener('click', updatePositionChart);
+            
+            // 日期时间控制
+            ['tickRotation', 'tickSize'].forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.addEventListener('input', (e) => {
+                        const valElement = document.getElementById(id + 'Val');
+                        if (valElement) {
+                            valElement.textContent = e.target.value + (id === 'tickRotation' ? '°' : 'px');
+                        }
+                    });
+                }
+            });
+            document.getElementById('updateDatetime')?.addEventListener('click', updateDatetimeChart);
+            
+            // 轴脊控制
+            document.querySelectorAll('.spine-preset').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const preset = e.currentTarget.dataset.preset;
+                    applySpinePreset(preset);
+                });
+            });
+            document.getElementById('updateSpines')?.addEventListener('click', updateSpineCharts);
+            
+            // 三角函数控制
+            document.getElementById('dataPoints')?.addEventListener('input', (e) => {
+                document.getElementById('dataPointsVal').textContent = e.target.value;
+            });
+            document.getElementById('updateTrig')?.addEventListener('click', updateTrigChart);
+            document.getElementById('calculateTrig')?.addEventListener('click', calculateTrigValues);
+            
+            // 快速操作
+            document.getElementById('exportData')?.addEventListener('click', exportData);
+            document.getElementById('resetCharts')?.addEventListener('click', resetAllCharts);
+        }
+        
+        // 更新概述图表
+        function updateOverviewChart() {
+            if (charts.overview) {
+                charts.overview.data.datasets[0].data = generateRandomPoints(50);
+                charts.overview.update();
+            }
+        }
+        
+        // 更新位置图表
+        function updatePositionChart() {
+            if (charts.position) {
+                // 在实际应用中，这里可以调整图表的位置和大小
+                charts.position.update();
+            }
+        }
+        
+        // 更新日期时间图表
+        function updateDatetimeChart() {
+            if (!charts.datetime) return;
+            
+            const interval = parseInt(document.getElementById('timeInterval').value);
+            const rotation = parseInt(document.getElementById('tickRotation').value);
+            const size = parseInt(document.getElementById('tickSize').value);
+            
+            const hours = Array.from({length: 25/interval}, (_, i) => i * interval);
+            const windSpeed = [7, 9, 11, 14, 8, 15, 22, 11, 10, 11, 11, 13, 8].slice(0, hours.length);
+            
+            charts.datetime.data.labels = hours.map(h => `${h}:00`);
+            charts.datetime.data.datasets[0].data = windSpeed;
+            charts.datetime.options.scales.x.ticks.maxRotation = rotation;
+            charts.datetime.options.scales.x.ticks.autoSkip = false;
+            charts.datetime.options.scales.x.ticks.font = { size: size };
+            charts.datetime.update();
+        }
+        
+        // 应用轴脊预设
+        function applySpinePreset(preset) {
+            const configs = {
+                traditional: {
+                    top: true, right: true, bottom: true, left: true,
+                    color: '#333333'
+                },
+                minimal: {
+                    top: false, right: false, bottom: true, left: true,
+                    color: '#333333'
+                },
+                centered: {
+                    top: false, right: false, bottom: true, left: true,
+                    color: '#333333'
+                }
+            };
+            
+            const config = configs[preset];
+            if (config) {
+                document.getElementById('spineTop').checked = config.top;
+                document.getElementById('spineRight').checked = config.right;
+                document.getElementById('spineBottom').checked = config.bottom;
+                document.getElementById('spineLeft').checked = config.left;
+                document.getElementById('spineColor').value = config.color;
+            }
+        }
+        
+        // 更新轴脊图表
+        function updateSpineCharts() {
+            if (charts.spinePolygon && charts.spinePentagon) {
+                const color = document.getElementById('spineColor').value;
+                
+                charts.spinePolygon.data.datasets[0].borderColor = color;
+                charts.spinePolygon.update();
+                
+                charts.spinePentagon.data.datasets[0].borderColor = color;
+                charts.spinePentagon.update();
+            }
+        }
+        
+        // 更新三角函数图表
+        function updateTrigChart() {
+            if (!charts.trig) return;
+            
+            const showSine = document.getElementById('showSine').checked;
+            const showCosine = document.getElementById('showCosine').checked;
+            const range = parseFloat(document.getElementById('xRange').value);
+            const points = parseInt(document.getElementById('dataPoints').value);
+            const animation = document.getElementById('enableAnimation').checked;
+            
+            const xData = generateXData(-range * Math.PI, range * Math.PI, points);
+            const datasets = [];
+            
+            if (showSine) {
+                datasets.push({
+                    label: 'sin(x)',
+                    data: xData.map(x => Math.sin(x)),
+                    borderColor: 'rgba(99, 102, 241, 1)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 0
+                });
+            }
+            
+            if (showCosine) {
+                datasets.push({
+                    label: 'cos(x)',
+                    data: xData.map(x => Math.cos(x)),
+                    borderColor: 'rgba(236, 72, 153, 1)',
+                    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 0
+                });
+            }
+            
+            charts.trig.data.labels = xData.map(x => x.toFixed(2));
+            charts.trig.data.datasets = datasets;
+            charts.trig.options.animation.duration = animation ? 1000 : 0;
+            charts.trig.update();
+        }
+        
+        // 计算三角函数值
+        function calculateTrigValues() {
+            const xValue = parseFloat(document.getElementById('xValue').value);
+            document.getElementById('sinResult').value = Math.sin(xValue).toFixed(4);
+            document.getElementById('cosResult').value = Math.cos(xValue).toFixed(4);
+        }
+        
+        // 导出数据
+        function exportData() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                charts: {}
+            };
+            
+            // 收集各图表数据
+            Object.keys(charts).forEach(key => {
+                data.charts[key] = {
+                    labels: charts[key].data.labels,
+                    datasets: charts[key].data.datasets.map(ds => ({
+                        label: ds.label,
+                        data: ds.data
+                    }))
+                };
+            });
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chart-data-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // 重置所有图表
+        function resetAllCharts() {
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.reset) {
+                    chart.reset();
+                }
+            });
+            
+            // 重置控件值
+            document.querySelectorAll('input[type="range"]').forEach(input => {
+                input.value = input.defaultValue;
+                const valElement = document.getElementById(input.id + 'Val');
+                if (valElement) {
+                    valElement.textContent = input.value;
+                }
+            });
+            
+            document.querySelectorAll('input[type="checkbox"]').forEach(input => {
+                input.checked = input.defaultChecked;
+            });
+        }
+        
+        // 主题切换
+        function initTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('dark');
+                    const icon = themeToggle.querySelector('i');
+                    icon.classList.toggle('fa-moon');
+                    icon.classList.toggle('fa-sun');
+                });
+            }
+        }
+        
+        // 辅助函数
+        function generateRandomPoints(count) {
+            return Array.from({length: count}, () => ({
+                x: Math.random() * 10,
+                y: Math.random() * 10
+            }));
+        }
+        
+        function generateXData(start, end, count) {
+            const step = (end - start) / (count - 1);
+            return Array.from({length: count}, (_, i) => start + i * step);
+        }
+        
+        function generatePolygonPoints(sides, centerX, centerY, radius = 0.2) {
+            const points = [];
+            for (let i = 0; i < sides; i++) {
+                const angle = (i * 2 * Math.PI) / sides - Math.PI / 2;
+                points.push({
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                });
+            }
+            // 闭合多边形
+            points.push(points[0]);
+            return points;
+        }
+    </script>
+</body>
+</html>
